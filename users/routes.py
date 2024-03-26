@@ -55,7 +55,7 @@ class RegisterApi(Resource):
 @api.route("/login")
 class LoginApi(Resource):
     @api.expect(api.model('login',{'username':fields.String(), "password":fields.String()}))
-    def get(self):
+    def post(self):
         try:
             data = request.get_json()
             serializer = UserNameSchema(username=data["username"])
@@ -117,4 +117,12 @@ class ResetApi(Resource):
             return {'message': str(e), "status":500},500
 
 
-
+@app.route("/getUser", methods=["GET"])
+def get_user():
+    user_id  = request.args.get("user_id")
+    if not user_id:
+        return {"message": "User id required to fetch the user data", "status": 404}, 404
+    user = Users.query.get(user_id)
+    if not user:
+        return {"message": "Invalid user", "status": 404}, 401
+    return user.json, 200
