@@ -1,8 +1,7 @@
 from books import app,db
 from flask_restx import Api,Resource,fields
 from flask import request
-from core.utils import JWT, authorize_user
-from users.models import Users
+from core.utils import  authorize_user
 from schemas.book_schema import BookSchema
 from books.models import Books
 from jwt import PyJWTError
@@ -52,6 +51,7 @@ class BookApi(Resource):
         except Exception as e:
             return {"message": str(e), "status": 500},500
         
+    @api.doc(params={"token": "book id"})
     def delete(self, *args, **kwargs):
         try:
             if not g.user['issuperuser']:
@@ -63,7 +63,9 @@ class BookApi(Resource):
             return {"message": "Book deleted successfully", "status": 204},204
         except Exception as e:
             return {"message": str(e), "status": 500},500
-        
+    
+    @api.doc(body=api.model('update',{
+        "title":fields.String(),"author":fields.String(),"price":fields.Integer(),"quantity":fields.Integer()}))
     def put(self):
         try:
             if not g.user['issuperuser']:
@@ -83,6 +85,26 @@ class BookApi(Resource):
 
         
 
+@app.get('/getBook')
+def get_book(*args,**kwargs):
+    try:
+        bookid=request.args.get("id")
+        if not bookid:
+            return {"message": "Book id not found", "status": 404}, 404
+        book=Books.query.filter_by(id=bookid).first()
+        if not book:
+            return {"message": "Book is not found", "status": 404}, 404
+        return book.json,200
+    except PyJWTError :
+        return {"message": "Invalid Token", "status": 401}, 401
+    except Exception as e:
+        return {"message": str(e), "status": 500}, 500
+
+
+
+
+
+    
 
 
 
