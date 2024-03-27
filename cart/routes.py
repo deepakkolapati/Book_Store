@@ -6,6 +6,7 @@ from cart.models import Cart,CartItems
 from schemas.cart_schema import ItemSchema
 from flask import g
 import requests as http
+import json
 
 api=Api(app=app,
         prefix="/api",
@@ -67,6 +68,8 @@ class CartApi(Resource):
                     "items_data":items_data}
         except Exception as e:
             return {"message": str(e), "status": 500},500
+
+
     @api.doc(params={'id':"Enter the cart id to be deleted"})
     def delete(self,*args,**kwargs):
         try:
@@ -83,8 +86,64 @@ class CartApi(Resource):
         except Exception as e:
             return {"message": str(e), "status": 500},500
 
-        
-	
+
+@api.route('/order')     
+class OrderCartApi(Resource):
+    method_decorators=[authorize_user]
+    def post(self,*args,**kwargs):
+        try:
+            user_id=g.user['id']
+            cart=Cart.query.filter_by(userid=user_id,is_ordered=False).first()
+            if not cart:
+                return {"message": "Cart not found", "status":404},404
+            items= cart.items
+            cart_data={}
+            headers = {'Content-Type': 'application/json'}
+            for item in items:
+                cart_data[item.book_id]=item.quantity
+            validate_response=http.post(f'http://127.0.0.1:7000/validateBooks',json=cart_data,headers=headers)
+            if validate_response.status_code >= 400:
+                return validate_response.json()
+            order_response=http.patch(f"http://127.0.0.1:7000/updateBooks",json=cart_data,headers=headers)
+            cart.is_ordered=True
+            db.session.commit()
+            return {"message": "Cart ordered successfully", "status":200},200
+        except Exception as e:
+            return {"message":str(e),"status": 500},500
+
+    @api.doc(params={"id":"Cart id to be canceled"})
+    def delete(self,*args,**kwargs):
+        try:
+            user_id=g.user["id"]
+            id=request.args.get("id")
+            cart=Cart.query.filter_by(userid=user_id,is_ordered=True,id=id).first()
+            if not cart:
+                return {"message": "Cart not found", "status":404},404
+            headers = {'Content-Type': 'application/json'}
+            items=cart.items
+            cart_data={}
+            for item in items:
+                cart_data[item.book_id]=-1*item.quantity
+            order_response=http.patch(f"http://127.0.0.1:7000/updateBooks",json=cart_data,headers=headers)
+            for item in cart.items:
+                db.session.delete(item)
+                db.session.commit()
+            db.session.delete(cart)
+            db.session.commit()
+            return {"message": "Ordered cancelled successfully", "status":204},204
+        except Exception as e:
+            return {"message": str(e), "status": 500},500
+
+            
+            
+            
+
+
+            
+
+
+
+
             
             
 
