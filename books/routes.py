@@ -100,10 +100,31 @@ def get_book(*args,**kwargs):
     except Exception as e:
         return {"message": str(e), "status": 500}, 500
 
+@app.post('/validateBooks')
+def validate_books(*args,**kwargs):
+    try:
+        data=request.json
+        for id,quantity in data.items():
+            book=Books.query.filter_by(id=id).first()
+            if not book:
+                return {"message": f"Book_{id} is not found", "status": 404}, 404
+            if book.quantity<quantity:
+                return {"message": f"Book_{id} has insufficient books", "status": 404}, 404
+        return {"message": "All the books are ready to be ordered", "status": 200}, 200
+    except Exception as e:
+        return {"message":str(e),"status": 500},500
 
-
-
-
+@app.patch("/updateBooks")
+def update_book(*args,**kwargs):
+    try:
+        data=request.json
+        for id,quantity in data.items():
+            book=Books.query.filter_by(id=id).first()
+            book.quantity-=quantity
+        db.session.commit()
+        return {"message": "Books updated successfully", "status": 200}, 200
+    except Exception as e:
+        return {"message":str(e),"status": 500},500
     
 
 
