@@ -73,11 +73,13 @@ class BookApi(Resource):
             id= request.args.get('id')
             userid=g.user['id']
             book=Books.query.filter_by(id=id,userid=userid).first()
+            if not book:
+                return {"message": "Book is not found", "status": 404}, 404
             serializer=BookSchema(**request.json)
             data=serializer.model_dump()
             [setattr(book,key,value)  for key,value in data.items()]
             db.session.commit()
-            return {"message": "Book updated successfully", "status": 200},200
+            return {"message": "Book updated successfully", "status": 201},201
         except ValueError as e:
             return {"message": str(e), "status": 400},400
         except Exception as e:
