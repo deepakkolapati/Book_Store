@@ -49,10 +49,11 @@ class CartApi(Resource):
             cart.total_quantity=sum([item.quantity for item in cart.items])
             cart.total_price=sum([item.quantity*item.price for item in cart.items])
             db.session.commit()
-            return {"message": "Book added to cart successfully", "status": 200,"data": cart_item.json},200
+            return {"message": "Book added to cart successfully", "status": 201,"data": cart_item.json},201
         except ValueError as e:
             return {"message": str(e), "status": 400},400
         except Exception as e:
+            print(e)
             return {"message": str(e), "status": 500},500
         
 
