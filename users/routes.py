@@ -23,7 +23,7 @@ class RegisterApi(Resource):
             db.session.add(user)
             db.session.commit()
             token=user.token('register',45)
-            send_mail(user.username,user.email,token,"register")
+            # send_mail(user.username,user.email,token,"register")
             return {"message": "User Registered Successfully", "status": 201, "data": user.json,"token":token},201
         except ValueError as e:
             return {"message": str(e), "status": 400},400
@@ -83,7 +83,7 @@ class ResetApi(Resource):
             if not user:
                 return {"message": "User not found", "status": 404},404
             token=user.token('reset',15)
-            send_mail(user.username,user.email,token,"reset")
+            # send_mail(user.username,user.email,token,"reset")
             return {"message":"Mail sent successfully","status":200,"token":token},200
         except Exception as e:
             return {"message": str(e), "status": 500},500
