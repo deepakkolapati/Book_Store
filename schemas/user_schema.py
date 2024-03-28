@@ -11,7 +11,7 @@ class UserPasswordSchema(BaseModel):
     @field_validator('password')
     @classmethod
     def validate_password(cls,value):
-        password_pattern = r'^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&]).{8,}$'
+        password_pattern = r'^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@*#$%^&]).{8,}$'
         if re.match(password_pattern,value):
             return value
         raise ValueError("Password must contain atleast one uppercase, one special character, one number and minimum length of 8")
