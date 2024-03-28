@@ -4,10 +4,19 @@ from settings import settings
 
 mail=Mail()
 
-def create_app(database):
+def create_app(database , mode='debug'):
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = settings.database_url.format(database=database)
-    app.config['SQLALCHEMY_TRACK_MODIFICATION'] = True
+    if mode == 'debug':
+        app.config['SQLALCHEMY_DATABASE_URI'] = settings.database_url.format(database=database)
+        app.config['SQLALCHEMY_TRACK_MODIFICATION'] = True
+        app.config['DEBUG'] = True
+        
+    if mode == 'test':
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATION'] = True
+        app.config['TESTING'] = True
+
+
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
     app.config['MAIL_PORT'] = settings.mail_port
     app.config['MAIL_USERNAME'] = settings.sender
