@@ -11,7 +11,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 api=Api(app=app,
-        prefix="/api",
+        prefix="/api",security='apiKey',
         authorizations={'apiKey': {
                 'type': 'apiKey',
                 'in': 'header',
@@ -98,6 +98,8 @@ class CartApi(Resource):
 @api.route('/order')     
 class OrderCartApi(Resource):
     method_decorators=[authorize_user]
+    @api.doc(body=api.model('order',{
+    }))
     @limiter.limit('20 per second')
     def post(self,*args,**kwargs):
         try:

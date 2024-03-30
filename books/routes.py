@@ -10,7 +10,7 @@ from flask import g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-api=Api(app=app, prefix = "/api",
+api=Api(app=app, prefix = "/api",security='apiKey',
         authorizations={'apiKey': {
                 'type': 'apiKey',
                 'in': 'header',
@@ -61,7 +61,7 @@ class BookApi(Resource):
             app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
         
-    @api.doc(params={"token": "book id"})
+    @api.doc(params={"id": "book id"})
     @limiter.limit('20 per second')
     def delete(self, *args, **kwargs):
         try:
@@ -76,7 +76,7 @@ class BookApi(Resource):
             app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
     
-    @api.doc(body=api.model('update',{
+    @api.doc(params={"id": "book id"},body=api.model('update',{
         "title":fields.String(),"author":fields.String(),"price":fields.Integer(),"quantity":fields.Integer()}))
     @limiter.limit('20 per second')
     def put(self):
