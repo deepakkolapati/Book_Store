@@ -6,14 +6,17 @@ from users.models import Users
 from sqlalchemy.exc import IntegrityError
 from core.utils import JWT,send_mail
 from jwt import PyJWTError
-
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from core.tasks import celery_send_mail
 
 api=Api(app=app, prefix = "/api", title = 'Book_User', doc = "/docs",default="Book",default_label="User")
-
+limiter = Limiter(app=app,key_func=get_remote_address, storage_uri="redis://localhost:6379/1")
 @api.route("/user")
 class RegisterApi(Resource):
     @api.expect(api.model('register',{'username':fields.String(),'email':fields.String(),
                           "password":fields.String(),"superkey":fields.String(required=False) }))
+    @limiter.limit('20 per second')
     def post(self):
         try:
             serializer=UserSchema(**request.json)
@@ -23,16 +26,20 @@ class RegisterApi(Resource):
             db.session.add(user)
             db.session.commit()
             token=user.token('register',45)
-            # send_mail(user.username,user.email,token,"register")
+            # celery_send_mail(user.username,user.email,token,"register")
             return {"message": "User Registered Successfully", "status": 201, "data": user.json,"token":token},201
         except ValueError as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 400},400
         except IntegrityError as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": "Username or email already exists", "status": 409},409
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
     
     @api.doc(params={"token": "Jwt token to verify user"})
+    @limiter.limit('20 per second')
     def get(self):
         try:
             token = request.args.get("token")
@@ -46,15 +53,18 @@ class RegisterApi(Resource):
             user.isverified=True
             db.session.commit()
             return {"message": "User Verified Successfully", "status": 200},200
-        except PyJWTError :
+        except PyJWTError as e :
+            app.logger.exception(e,exc_info=False)
             return {"message": "Invalid Token", "status": 401}, 401
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
 
 
 @api.route("/login")
 class LoginApi(Resource):
     @api.expect(api.model('login',{'username':fields.String(), "password":fields.String()}))
+    @limiter.limit('20 per second')
     def post(self):
         try:
             data = request.get_json()
@@ -66,9 +76,11 @@ class LoginApi(Resource):
             return {"message":"Username or Password is incorrect","status":401},401
 
         except ValueError as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": "Username must contain minumum length of 3 and maximum length of 9", "status": 400},400
         
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
 
 
@@ -76,6 +88,7 @@ class LoginApi(Resource):
 @api.route("/reset")
 class ResetApi(Resource):
     @api.expect(api.model('forgot',{"email":fields.String()}))
+    @limiter.limit('20 per second')
     def post(self):
         try:
             data=request.json
@@ -86,10 +99,12 @@ class ResetApi(Resource):
             # send_mail(user.username,user.email,token,"reset")
             return {"message":"Mail sent successfully","status":200,"token":token},200
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
         
     @api.doc(params={"token": "Jwt token for password reset"}, body=api.model('reset',
                 {'newpassword':fields.String(), 'confirmpassword':fields.String()}))
+    @limiter.limit('20 per second')
     def put(self):
         try:
             token=request.args.get('token')
@@ -109,11 +124,14 @@ class ResetApi(Resource):
             user.set_password(newpassword)
             db.session.commit()
             return {'message': 'Password changed succesfully', 'status': 200},200
-        except PyJWTError:
+        except PyJWTError as e:
+            app.logger.exception(e,exc_info=False)
             return {'message':"Invalid token", "status": 401},401
         except ValueError as e:
+            app.logger.exception(e,exc_info=False)
             return {'message': str(e), "status":401},401
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {'message': str(e), "status":500},500
 
 
