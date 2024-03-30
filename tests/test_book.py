@@ -75,7 +75,7 @@ def test_get_book_return_success(book_client,mock_authentication,token):
     data = {
         "title": "hi yo",
         "author": "hi yo",
-        "price": "jdrd",
+        "price": 20,
         "quantity":  15
            }
     response = book_client.post('/api/books', json=data , headers={"Content-Type": "application/json" , "Authorization": token})
