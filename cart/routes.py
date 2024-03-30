@@ -7,6 +7,8 @@ from schemas.cart_schema import ItemSchema
 from flask import g
 import requests as http
 import json
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 api=Api(app=app,
         prefix="/api",
@@ -16,13 +18,14 @@ api=Api(app=app,
                 'required': True,
                 'name': 'Authorization'}},
         doc="/docs",title="Book_Cart",default="Book",default_label="Cart")
-
+limiter = Limiter(app=app,key_func=get_remote_address, storage_uri="redis://localhost:6379/1")
 
 @api.route("/cart")
 class CartApi(Resource):
     
     method_decorators=[authorize_user]
     @api.expect(api.model('Add/deleteItems',{'bookid':fields.Integer(),'quantity':fields.Integer()}))
+    @limiter.limit('20 per second')
     def post(self):
         try:
             serializer=ItemSchema(**request.json)
@@ -51,12 +54,13 @@ class CartApi(Resource):
             db.session.commit()
             return {"message": "Book added to cart successfully", "status": 201,"data": cart_item.json},201
         except ValueError as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 400},400
         except Exception as e:
-            print(e)
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
         
-
+    @limiter.limit('20 per second')
     def get(self,*args,**kwargs):
         try:
             user_id=g.user['id']
@@ -68,10 +72,12 @@ class CartApi(Resource):
             return {"message": "Cart fetched successfully","status":200,"cart_data":cart.json,
                     "items_data":items_data}
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
 
 
     @api.doc(params={'id':"Enter the cart id to be deleted"})
+    @limiter.limit('20 per second')
     def delete(self,*args,**kwargs):
         try:
             user_id=g.user['id']
@@ -85,12 +91,14 @@ class CartApi(Resource):
             db.session.commit()
             return {"message": "Cart deleted successfully", "status": 204},204
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
 
 
 @api.route('/order')     
 class OrderCartApi(Resource):
     method_decorators=[authorize_user]
+    @limiter.limit('20 per second')
     def post(self,*args,**kwargs):
         try:
             user_id=g.user['id']
@@ -110,9 +118,11 @@ class OrderCartApi(Resource):
             db.session.commit()
             return {"message": "Cart ordered successfully", "status":200},200
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message":str(e),"status": 500},500
 
     @api.doc(params={"id":"Cart id to be canceled"})
+    @limiter.limit('20 per second')
     def delete(self,*args,**kwargs):
         try:
             user_id=g.user["id"]
@@ -133,6 +143,7 @@ class OrderCartApi(Resource):
             db.session.commit()
             return {"message": "Ordered cancelled successfully", "status":204},204
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
 
             

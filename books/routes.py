@@ -7,6 +7,8 @@ from books.models import Books
 from jwt import PyJWTError
 from sqlalchemy.exc import IntegrityError
 from flask import g
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 api=Api(app=app, prefix = "/api",
         authorizations={'apiKey': {
@@ -16,6 +18,7 @@ api=Api(app=app, prefix = "/api",
                 'name': 'Authorization'
             }},
         title = 'Book_Inventory', doc = "/docs",default="Book",default_label="Inventory")
+limiter = Limiter(app=app,key_func=get_remote_address, storage_uri="redis://localhost:6379/1")
 
 @api.route("/books")
 class BookApi(Resource):
@@ -24,6 +27,7 @@ class BookApi(Resource):
 
     @api.doc(body=api.model('create',{
         "title":fields.String(),"author":fields.String(),"price":fields.Integer(),"quantity":fields.Integer()}))
+    @limiter.limit('20 per second')
     def post(self):
         try:
             if not g.user['issuperuser']:
@@ -34,24 +38,31 @@ class BookApi(Resource):
             db.session.add(book)
             db.session.commit()
             return {"message": "Book added successfully", "status" : 201, "data": book.json},201
-        except PyJWTError:
+        except PyJWTError as e:
+            app.logger.exception(e,exc_info=False)
             return {'message':"Invalid token", "status": 401},401
         except ValueError as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 400},400
         except IntegrityError as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 409},409
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status":500},500
         
+    @limiter.limit('20 per second')
     def get(self, *args, **kwargs):
         try:
             books=Books.query.all()
             data=[book.json for book in books]
             return {"message": "Books fetched successfully", "status":200, "data": data},200
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
         
     @api.doc(params={"token": "book id"})
+    @limiter.limit('20 per second')
     def delete(self, *args, **kwargs):
         try:
             if not g.user['issuperuser']:
@@ -62,10 +73,12 @@ class BookApi(Resource):
             db.session.commit()
             return {"message": "Book deleted successfully", "status": 204},204
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500},500
     
     @api.doc(body=api.model('update',{
         "title":fields.String(),"author":fields.String(),"price":fields.Integer(),"quantity":fields.Integer()}))
+    @limiter.limit('20 per second')
     def put(self):
         try:
             if not g.user['issuperuser']:
@@ -81,8 +94,10 @@ class BookApi(Resource):
             db.session.commit()
             return {"message": "Book updated successfully", "status": 201},201
         except ValueError as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 400},400
         except Exception as e:
+            app.logger.exception(e,exc_info=False)
             return {"message": str(e), "status": 500}, 500
 
         
@@ -97,9 +112,11 @@ def get_book(*args,**kwargs):
         if not book:
             return {"message": "Book is not found", "status": 404}, 404
         return book.json,200
-    except PyJWTError :
+    except PyJWTError as e :
+        app.logger.exception(e,exc_info=False)
         return {"message": "Invalid Token", "status": 401}, 401
     except Exception as e:
+        app.logger.exception(e,exc_info=False)
         return {"message": str(e), "status": 500}, 500
 
 @app.post('/validateBooks')
@@ -114,6 +131,7 @@ def validate_books(*args,**kwargs):
                 return {"message": f"Book_{id} has insufficient books", "status": 404}, 404
         return {"message": "All the books are ready to be ordered", "status": 200}, 200
     except Exception as e:
+        app.logger.exception(e,exc_info=False)
         return {"message":str(e),"status": 500},500
 
 @app.patch("/updateBooks")
@@ -126,6 +144,7 @@ def update_book(*args,**kwargs):
         db.session.commit()
         return {"message": "Books updated successfully", "status": 200}, 200
     except Exception as e:
+        app.logger.exception(e,exc_info=False)
         return {"message":str(e),"status": 500},500
     
 
